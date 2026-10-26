@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trading Lab — paper-trading research dashboard</title>
+<meta name="description" content="What our bots have tested for Indian markets, what passed (nothing yet), paper trading and market news. Research only, not financial advice.">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+</head>
+<body>
+<header>
+  <div class="wrap head">
+    <div>
+      <h1>📊 Trading Lab</h1>
+      <p class="sub">Paper-trading research for Indian markets (NSE/BSE) · <span id="updated">loading…</span></p>
+    </div>
+    <span class="pill paper">PAPER ONLY · NO REAL ORDERS</span>
+  </div>
+  <nav class="wrap tabs" id="tabs">
+    <button data-tab="overview" class="active">Overview</button>
+    <button data-tab="strategies">Strategies tried</button>
+    <button data-tab="gate">Leaderboard &amp; gate</button>
+    <button data-tab="paper">Paper trading</button>
+    <button data-tab="news">Market news</button>
+    <button data-tab="research">Research pipeline</button>
+    <button data-tab="bots">Bots</button>
+  </nav>
+</header>
+<main class="wrap">
+  <section id="overview" class="tab active"></section>
+  <section id="strategies" class="tab"></section>
+  <section id="gate" class="tab"></section>
+  <section id="paper" class="tab"></section>
+  <section id="news" class="tab"></section>
+  <section id="research" class="tab"></section>
+  <section id="bots" class="tab"></section>
+</main>
+<footer class="wrap">
+  <p><b>Disclaimer:</b> paper trading and research only. Not financial advice, not a recommendation to buy or sell any security. Backtests are hypothetical and past results do not predict future returns. Options selling can lose far more than the premium received.</p>
+  <p class="muted">Auto-generated from the bots' shared research logs by <code>update.sh</code>. Data: NSE/BSE public bhavcopy, Groww market data (read-only), public news sources linked inline.</p>
+</footer>
+<script src="app.js"></script>
+</body>
+</html>

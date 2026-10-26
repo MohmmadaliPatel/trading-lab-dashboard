@@ -1,0 +1,382 @@
+{
+ "queue": [
+  {
+   "id": "R1",
+   "title": "R1 — Nifty weekly iron condor, carried overnight (defined-risk premium selling)",
+   "status": "TESTED (32 variants, none passed)",
+   "detail": "Nifty option VRP is earned mainly overnight (Bhat-Pandey-Rao 2024); short +/-600 strangle carried overnight showed t=2.55 over 453 trades (Algo Bench), but tail days were gap days -> cap risk with wings to fit ₹1L."
+  },
+  {
+   "id": "R2",
+   "title": "R2 — Replace naked ATM buy with a debit vertical (same signal as current bot)",
+   "status": "TESTED (20 variants, none passed)",
+   "detail": "Current bot's pre-friction expectancy is ~ -₹85 to -₹110/trade and friction ~₹300/trade (bot logs). A vertical cuts premium outlay ~70% (less slippage in ₹ and less theta/vega) at the cost of 2x brokerage. Direct A/B test vs current baseline."
+  },
+  {
+   "id": "R3",
+   "title": "R3 — Supertrend(10,2) on 30m Nifty, expressed as a monthly debit spread (₹1L proxy)",
+   "status": "TESTED (17 variants, none passed)",
+   "detail": "Algo Bench: Supertrend(10,2) 30m Nifty via ATM monthly synthetic futures, Oct-2022->Jul-2026: 543 trades, t=2.21 (t=1.92 on futures with 5-pt cost) but needs ~₹3.5L and DD -2,324 pts. Fragile to multiplier (1.8/2.2/2.5 much weaker)."
+  },
+  {
+   "id": "R4",
+   "title": "R4 — India VIX regime switch (meta-rule choosing R1 / R2 / flat)",
+   "status": "TESTED (3 variants, none passed)",
+   "detail": "Sell defined-risk premium when implied vol is rich, buy spreads only when vol is cheap and price is trending; stand aside otherwise. Garg & Vipul 2015: VRP exists in Nifty options but is largely eaten by costs except for low-cost writers -> trade it only when premium is fat."
+  },
+  {
+   "id": "R5",
+   "title": "R5 — Event & expiry overlay (filter applied to every directional rule)",
+   "status": "TESTED (3 variants, none passed)",
+   "detail": "In the bot's own ₹1L REAL test, 'event veto' cut losses from -21.1% to -10.9% (and drawdown -42.6% -> -33.8%) — the most consistent single filter. Expiry days carry extra ELM, settlement-mechanics changes, and retail concentration (42% of expiry-day volume, Agarwal et al. 2025)."
+  },
+  {
+   "id": "R6",
+   "title": "R6 — Time-exit option buying (ON PROBATION — failed walk-forward)",
+   "status": "TESTED (1 variants, none passed) · PROBATION",
+   "detail": "Cutting non-performing longs after 60 min (keep only if premium >= +10%) shrank avg loss from ~₹3.1k to ~₹1.8k; full-period REAL +₹43.0k (138 trades) at ₹1L. BUT walk-forward selected it in-sample (+₹50.9k) and it lost OOS (-₹7.9k, 49 trades; Oct-2026 alone -₹16.0k)."
+  },
+  {
+   "id": "R7",
+   "title": "R7 — FII index-futures positioning bias (EXPLORATORY, no published edge found)",
+   "status": "TESTED (2 variants, none passed) · EXPLORATORY",
+   "detail": "Free daily NSE participant-wise OI gives FII long/short index futures. Hypothesis only: trade R2 direction only when it agrees with FII net index-futures change. No source found demonstrating an edge — treat as a pure hypothesis and count it as a trial."
+  },
+  {
+   "id": "R8",
+   "title": "R8 — Far tail wings on frozen F4 pre-expiry strangle (TESTED 26-Oct-2026: REJECTED)",
+   "status": "TESTED: REJECTED",
+   "detail": "frozen F4: sell CE/PE at ±1.0 EM, 1 trading day before expiry, VIX 252d pct >= 0.30; buy CE/PE at ±w EM (w in 2.0/2.5/3.0)"
+  },
+  {
+   "id": "R9",
+   "title": "R9 — Nifty monthly 14-DTE defined-risk strangle/condor (TEST NEXT)",
+   "status": "TESTED (8 variants, none passed)",
+   "detail": "MarketCue: 14-DTE monthly strangle passed both Y1 and Y2 (Oct-2024..Sep-2026): +₹79,181, 23 trades, 78% win, PF 2.49, DD −₹22,583. Fewer, longer trades -> edge per trade far above Indian costs (our 24-Oct priority)."
+  },
+  {
+   "id": "R10",
+   "title": "R10 — Sensex pre-expiry overnight strangle as a second F4 instance (TEST; data needed)",
+   "status": "TESTED (4 variants, none passed)",
+   "detail": "MarketCue Sensex Overnight Strangle ₹30: entered the day before expiry, exited 15:00 on expiry, legs ~₹30 (~1.8% OTM). +₹61,205, 103 trades, 91% win, PF 3.08, DD −₹8,645 on ₹2L; Y1 +37.7k, Y2 +23.5k. Independent confirmation of the F4 pre-expiry idea (2024-26 only)."
+  },
+  {
+   "id": "R11",
+   "title": "R11 — Holiday/weekend-hold veto for pre-expiry shorts (TESTED 26-Oct-2026: REJECTED)",
+   "status": "TESTED: REJECTED",
+   "detail": "skip F4 entry if entry->expiry spans >= 2 calendar nights"
+  },
+  {
+   "id": "R12",
+   "title": "R12 / C4 — Harness calibration control + option-buying retirement policy",
+   "status": "TESTED (2 variants, none passed)",
+   "detail": "MarketCue (updated 25-Oct-2026): 0/9 option-buying strategies pass; 8/9 lose after costs over 1,220 trades; expiry-day ATM straddle costs ~0.52% of index vs ~0.47% realised move; baseline −₹1,78,044."
+  }
+ ],
+ "weekly": [
+  {
+   "name": "equity_setups",
+   "title": "Equity ORB + Scout daily setups - backtest & improvement search (generated 2026-10-24 01:15 IST)",
+   "headline": []
+  },
+  {
+   "name": "weekly-2026-10-26",
+   "title": "Weekly strategy-improvement run, Mon 26-Oct-2026 (IST)",
+   "headline": [
+    "Result: 0 of 58 variants pass the strict gate. The leaderboard is still empty.",
+    "\n\n| Slippage | Net | Win rate | t | Max DD | Charges |\n|---|---|---|---|---|---|\n| 0.5% | ",
+    " | 37% | -1.36 | ₹-1,24,944 | ₹15,983 |\n| 1.0% | ₹-1,17,446 | — | — | — | — |\n\nBy year: 2024 ₹-39.5k, 2025 ₹-41.9k, 2026 ₹-24.6k.\n\n"
+   ]
+  }
+ ],
+ "reports": [
+  {
+   "file": "trading-research/digest-2026-10-23.md",
+   "title": "Indian Options Trading Research Digest"
+  },
+  {
+   "file": "trading-research/digest-2026-10-26.md",
+   "title": "Indian Options Trading Research Digest: 26 Oct 2026 (Mon, IST)"
+  },
+  {
+   "file": "trading-research/extended-history-retest-2026-10-24.md",
+   "title": "Extended-history re-test (2016–2026): Nifty weekly ±1 EM pre-expiry strangle (24-Oct-2026, IST)"
+  },
+  {
+   "file": "trading-research/rules.md",
+   "title": "Backtestable rule sets — Indian index options, ₹1,00,000 capital"
+  },
+  {
+   "file": "trading-research/strategy-capital-report-2026-10-23.md",
+   "title": "Strategy & Capital Backtest Report: Nifty / BankNifty options (2026-10-23)"
+  },
+  {
+   "file": "groww-bot/reports/options_report.md",
+   "title": "BANKNIFTY option-buying backtest  (generated 2026-10-23 22:16 IST)"
+  },
+  {
+   "file": "groww-bot/reports/options_report_1L.md",
+   "title": "BANKNIFTY option-buying backtest  (generated 2026-10-23 23:34 IST)"
+  },
+  {
+   "file": "groww-bot/reports/options_report_diagnostic_uncapped.md",
+   "title": "BANKNIFTY option-buying backtest  (generated 2026-10-23 22:28 IST)"
+  },
+  {
+   "file": "groww-bot/reports/research_rules_report.md",
+   "title": "Research rules (rules.md R1-R7, controls C1-C3): REAL-premium backtest at Rs 1,00,000"
+  }
+ ],
+ "runs": [
+  {
+   "run": "20261026-112431-trading-research",
+   "date": "2026-10-26 11:24",
+   "bot": "trading-research",
+   "rows": 4,
+   "families": [
+    "R9 Nifty monthly 14-DTE strangle"
+   ],
+   "passed": 0
+  },
+  {
+   "run": "20261026-111720-trading-coordinator",
+   "date": "2026-10-26 11:17",
+   "bot": "trading-coordinator",
+   "rows": 48,
+   "families": [
+    "Equity swing (Scout setups)"
+   ],
+   "passed": 0
+  },
+  {
+   "run": "20261026-r9-monthly14dte-trading-coordinator",
+   "date": "2026-10-26 11:17",
+   "bot": "trading-coordinator",
+   "rows": 4,
+   "families": [
+    "R9 Nifty monthly 14-DTE strangle"
+   ],
+   "passed": 0
+  },
+  {
+   "run": "20261026-r10-sensex-trading-coordinator",
+   "date": "2026-10-26 11:17",
+   "bot": "trading-coordinator",
+   "rows": 4,
+   "families": [
+    "R10 Sensex pre-expiry strangle"
+   ],
+   "passed": 0
+  },
+  {
+   "run": "20261026-c4-control-trading-coordinator",
+   "date": "2026-10-26 11:17",
+   "bot": "trading-coordinator",
+   "rows": 2,
+   "families": [
+    "C4 control: buy expiry straddle"
+   ],
+   "passed": 0
+  },
+  {
+   "run": "20261026-080803-trading-research",
+   "date": "2026-10-26 08:08",
+   "bot": "trading-research",
+   "rows": 6,
+   "families": [
+    "NIFTY options: F4 Short strangle/straddle"
+   ],
+   "passed": 0
+  },
+  {
+   "run": "20261026-080854-trading-research",
+   "date": "2026-10-26 08:08",
+   "bot": "trading-research",
+   "rows": 1,
+   "families": [
+    "NIFTY options: F4 Short strangle/straddle"
+   ],
+   "passed": 0
+  },
+  {
+   "run": "20261024-011756-trading-research",
+   "date": "2026-10-24 01:17",
+   "bot": "trading-research",
+   "rows": 1,
+   "families": [
+    "NIFTY options: F4 Short strangle/straddle"
+   ],
+   "passed": 0
+  },
+  {
+   "run": "20261024-011519-groww-bot-research-executor",
+   "date": "2026-10-24 01:15",
+   "bot": "groww-bot (research executor)",
+   "rows": 432,
+   "families": [
+    "Equity ORB intraday (Scout setups)"
+   ],
+   "passed": 0
+  },
+  {
+   "run": "20261024-005252-trading-research",
+   "date": "2026-10-24 00:52",
+   "bot": "trading-research",
+   "rows": 109,
+   "families": [
+    "NIFTY options: F1 Directional buy",
+    "NIFTY options: F2 Debit spread",
+    "NIFTY options: F3 Credit spread",
+    "NIFTY options: F4 Short strangle/straddle",
+    "NIFTY options: F5 Overnight vs intraday short vol",
+    "NIFTY options: F6 Iron condor / iron fly",
+    "NIFTY options: F7 Calendar",
+    "NIFTY options: F8 Ratio spread",
+    "NIFTY options: F9 Futures + option hedge"
+   ],
+   "passed": 0
+  },
+  {
+   "run": "20261024-004502-groww-bot-research",
+   "date": "2026-10-24 00:45",
+   "bot": "groww-bot (research executor)",
+   "rows": 81,
+   "families": [
+    "Research rule C1",
+    "Research rule C2",
+    "Research rule C3",
+    "Research rule R1",
+    "Research rule R2",
+    "Research rule R3",
+    "Research rule R4",
+    "Research rule R5",
+    "Research rule R6",
+    "Research rule R7"
+   ],
+   "passed": 0
+  },
+  {
+   "run": "20261024-003312-trading-research",
+   "date": "2026-10-24 00:33",
+   "bot": "trading-research",
+   "rows": 216,
+   "families": [
+    "BANKNIFTY options: F1 Directional buy",
+    "BANKNIFTY options: F2 Debit spread",
+    "BANKNIFTY options: F3 Credit spread",
+    "BANKNIFTY options: F4 Short strangle/straddle",
+    "BANKNIFTY options: F5 Overnight vs intraday short vol",
+    "BANKNIFTY options: F6 Iron condor / iron fly",
+    "BANKNIFTY options: F7 Calendar",
+    "BANKNIFTY options: F8 Ratio spread",
+    "BANKNIFTY options: F9 Futures + option hedge",
+    "NIFTY options: F1 Directional buy",
+    "NIFTY options: F2 Debit spread",
+    "NIFTY options: F3 Credit spread",
+    "NIFTY options: F4 Short strangle/straddle",
+    "NIFTY options: F5 Overnight vs intraday short vol",
+    "NIFTY options: F5 intraday/overnight short vol (Groww 5m)",
+    "NIFTY options: F6 Iron condor / iron fly",
+    "NIFTY options: F7 Calendar",
+    "NIFTY options: F8 Ratio spread",
+    "NIFTY options: F9 Futures + option hedge"
+   ],
+   "passed": 0
+  },
+  {
+   "run": "20261024-ongc-dryrun-india-day-trader",
+   "date": "2026-10-24 00:18",
+   "bot": "india-day-trader",
+   "rows": 1,
+   "families": [
+    "Equity ORB (anecdote)"
+   ],
+   "passed": 0
+  },
+  {
+   "run": "20261023-bn-options-1L-groww-bot",
+   "date": "2026-10-23 23:34",
+   "bot": "groww-bot",
+   "rows": 54,
+   "families": [
+    "BankNifty option buying bot (EMA/RSI)"
+   ],
+   "passed": 0
+  },
+  {
+   "run": "20261023-bn-options-uncapped-diag-groww-bot",
+   "date": "2026-10-23 22:28",
+   "bot": "groww-bot",
+   "rows": 23,
+   "families": [
+    "BankNifty option buying bot (EMA/RSI)"
+   ],
+   "passed": 0
+  },
+  {
+   "run": "20261023-bn-options-20k-groww-bot",
+   "date": "2026-10-23 22:16",
+   "bot": "groww-bot",
+   "rows": 46,
+   "families": [
+    "BankNifty option buying bot (EMA/RSI)"
+   ],
+   "passed": 0
+  },
+  {
+   "run": "20261023-equity-emarsi-groww-bot",
+   "date": "2026-10-23 (backfill)",
+   "bot": "groww-bot",
+   "rows": 2,
+   "families": [
+    "Equity EMA/RSI template"
+   ],
+   "passed": 0
+  }
+ ],
+ "week_ahead": [
+  {
+   "date": "Mon 26 Oct",
+   "event": "Paper-strangle entry day for the 27-Oct expiry. TATACONSUM results."
+  },
+  {
+   "date": "Tue 27 Oct",
+   "event": "Monthly F&O expiry: Nifty (weekly+monthly), BankNifty, FinNifty, MidcpNifty, stocks. Results: L&T, Maruti, Tata Steel, Bajaj Auto, Cipla, SBI Life."
+  },
+  {
+   "date": "Wed 28 Oct",
+   "event": "New stock lot sizes take effect; BAJAJHLDNG, IEX and IREDA leave F&O. Jio Platforms listing (₹30,188 cr IPO). India IIP (Sep). Results: HUL, Adani Ent, Adani Ports. FOMC decision 23:30 IST (India reacts Thu)."
+  },
+  {
+   "date": "Thu 29 Oct",
+   "event": "Sensex weekly expiry. ECB 18:45 IST. US Q3 GDP / PCE. Results: Asian Paints, Coal India, IndiGo, Trent."
+  },
+  {
+   "date": "Fri 30 Oct",
+   "event": "BoJ ~08:30 IST. Results: Sun Pharma, BEL, Max Healthcare."
+  },
+  {
+   "date": "Sat 31 Oct",
+   "event": "NTPC results."
+  },
+  {
+   "date": "Mon 2 Nov",
+   "event": "HSBC India Mfg PMI. ITC results. Paper entry day for the 3-Nov expiry."
+  },
+  {
+   "date": "Tue 3 Nov",
+   "event": "Nifty weekly expiry. Bajaj Finserv results."
+  },
+  {
+   "date": "Look-ahead",
+   "event": "Fri 6-Nov US NFP. Fri 6-Nov is the paper entry for the Mon 9-Nov expiry, a 3-night hold that includes the Sun 8-Nov Muhurat session (CTS 14:20; CAS to 15:15). Tue 10-Nov holiday. Mon 23-Nov Nifty+BankNifty monthly (24-Nov holiday). RBI MPC 2–4 Dec. 7-Dec SEBI change: expiring index contracts close 15:30, and settlement returns to the 15:00–15:30 VWAP."
+  }
+ ],
+ "trials": 595,
+ "next_focus": [
+  "Positional option selling with fewer, larger-edge trades (monthly/weekly expiries)",
+  "Sensex weekly strangle as a second, uncorrelated instance (R10, needs more history)",
+  "Wider stock universe / different signals for equities (Scout setups failed 88 versions)",
+  "Weekly improvement cycle every Monday ≈ 11:00 IST; strategies dropped if paper results fall short"
+ ]
+}
