@@ -65,7 +65,7 @@ def num(v):
 
 def dump(name, obj):
     with open(os.path.join(OUT, name), "w", encoding="utf-8") as f:
-        json.dump(obj, f, ensure_ascii=False, indent=1, default=str)
+        json.dump(obj, f, ensure_ascii=False, separators=(",", ":"), default=str)
 
 
 # ---------------------------------------------------------------- backtests
@@ -515,6 +515,18 @@ def build_meta(bt, fams, lb, planner_days, journal):
     dump("meta.json", meta)
 
 
+def stamp_assets():
+    """Version app.js/style.css URLs in index.html by content hash, so they can be cached for a year."""
+    import hashlib, re
+    root = os.path.dirname(os.path.abspath(__file__))
+    p = os.path.join(root, "index.html")
+    html = open(p, encoding="utf-8").read()
+    for name in ("app.js", "style.css"):
+        h = hashlib.sha1(open(os.path.join(root, name), "rb").read()).hexdigest()[:10]
+        html = re.sub(re.escape(name) + r'(\?v=[0-9a-f]+)?"', f'{name}?v={h}"', html)
+    open(p, "w", encoding="utf-8").write(html)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     universe = load_universe()
@@ -525,6 +537,7 @@ def main():
     queue, runlist = build_research(bt)
     build_bots(bt, days, pdays, journal, runlist)
     build_meta(bt, fams, lb, pdays, journal)
+    stamp_assets()
     print(f"built data/*.json at {NOW:%Y-%m-%d %H:%M} IST: {len(bt)} variants, {len(fams)} families, {len(lb)} leaderboard, {len(days)} news days, {len(events)} events")
 
 

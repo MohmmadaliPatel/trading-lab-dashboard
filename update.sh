@@ -50,7 +50,7 @@ if git diff --quiet HEAD -- . ':(exclude)data/meta.json' 2>/dev/null && [ -z "$(
   exit 0
 fi
 
-git add -A index.html app.js style.css data README.md build_site.py update.sh .gitignore .nojekyll
+git add -A index.html app.js style.css data README.md build_site.py update.sh .gitignore .nojekyll vercel.json .vercelignore
 if git diff --cached --quiet; then
   echo "no changes; nothing to push"
   exit 0

@@ -1,0 +1,7 @@
+build_site.py
+update.sh
+private_terms.txt
+README.md
+__pycache__
+*.pyc
+.git

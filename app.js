@@ -10,19 +10,22 @@ const charts = {};
 function chart(id, cfg) { if (charts[id]) charts[id].destroy(); const c = document.getElementById(id); if (c && window.Chart) charts[id] = new Chart(c, cfg); }
 if (window.Chart) { Chart.defaults.color = "#93a0b8"; Chart.defaults.borderColor = "#2a3550"; }
 
-document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => { location.hash = b.dataset.tab; });
+function route() {
+  const [tab, sub] = (location.hash.slice(1) || "overview").split("/");
+  const b = document.querySelector(`#tabs button[data-tab="${tab}"]`) || document.querySelector("#tabs button");
   document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("active", x === b));
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.id === b.dataset.tab));
-  history.replaceState(null, "", "#" + b.dataset.tab);
-  if (b.dataset.tab === "bots") renderMermaid();
-});
+  if (b.dataset.tab === "bots") botDetail(sub || "");
+}
+window.addEventListener("hashchange", route);
 
 async function load() {
   const names = ["meta", "backtests", "leaderboard", "paper", "news", "research", "bots"];
-  await Promise.all(names.map(async n => { try { D[n] = await (await fetch(`data/${n}.json?v=${Date.now()}`)).json(); } catch { D[n] = null; } }));
+  await Promise.all(names.map(async n => { try { D[n] = await (await fetch(`data/${n}.json`, { cache: "no-cache" })).json(); } catch { D[n] = null; } }));
   $("#updated").textContent = D.meta ? "last updated " + D.meta.updated_ist : "data unavailable";
   [overview, strategies, gate, paper, news, research, bots].forEach(f => { try { f(); } catch (e) { console.error(f.name, e); } });
-  const h = location.hash.slice(1); const b = document.querySelector(`#tabs button[data-tab="${h}"]`); if (b) b.click();
+  route();
 }
 
 // ---------------------------------------------------------------- Overview
@@ -226,11 +229,12 @@ function research() {
 }
 
 // ---------------------------------------------------------------- Bots
+const slug = s => String(s).toLowerCase().replace(/\(.*?\)/g, "").trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const runBots = { "grok-bot": ["trading-coordinator", "groww-bot (research executor)", "groww-bot"], "trading-research-bot": ["trading-research"], "trade-planner": ["india-day-trader"] };
 function bots() {
   const B = D.bots; if (!B) return;
-  const sc = B.scout;
-  const opp = B.opportunities.filter(o => o.status !== "rejected");
-  $("#bots").innerHTML = `
+  $("#bots").innerHTML = `<div id="botList"></div><div id="botDetail" hidden></div>`;
+  $("#botList").innerHTML = `
   <h2>The bot team</h2>
   <div class="alert"><b>House rules:</b><ul class="clean">${B.rules.map(r => `<li>${esc(r)}</li>`).join("")}</ul></div>
   <h3>How information flows</h3>
@@ -251,27 +255,73 @@ flowchart TD
   O[Opportunity Hunter<br/>side-income research] -->|weekly top-3| G
   G -->|rebuild| W[This website]
   </div>
-  <h3>Bots</h3>
-  <div class="grid wide">${B.bots.map(b => `<div class="card"><h4>${b.emoji} ${esc(b.name)}</h4><p>${esc(b.role)}</p>
-    <p><b>Schedule (IST):</b></p><ul class="clean">${b.schedule.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
-    <p><b>Reads:</b> ${b.inputs.map(esc).join(" · ")}</p><p><b>Writes:</b> ${b.outputs.map(esc).join(" · ")}</p>
-    <p><b>Hands off to:</b> ${b.hands_to.map(h => `<span class="pill">${esc(h)}</span>`).join("")}</p>
-    <div class="note" style="margin:8px 0 0"><b>Latest:</b> ${esc(b.latest)}</div></div>`).join("")}</div>
-  <h3>Market Scout hits — ${esc(sc.date || "none")}</h3>
-  <div class="grid"><div class="card"><h4>By scan</h4>${Object.entries(sc.by_scan).map(([k, v]) => `<p>${esc(k)}: <b>${v}</b></p>`).join("")}</div>
-   <div class="card"><div class="chartbox" style="height:200px"><canvas id="setupChart"></canvas></div></div></div>
-  <div class="controls"><input type="search" id="hQ" placeholder="Filter hits by symbol / setup…"></div>
-  <div class="tablewrap" style="max-height:420px"><table id="hits"><thead><tr><th>Time</th><th>Scan</th><th>Symbol</th><th>Setup</th><th>Price</th><th>% over level</th><th>News</th></tr></thead><tbody></tbody></table></div>
-  <h3>Opportunity Hunter — top ideas</h3>
-  <p class="muted">Income figures are estimates unless quoted from a program page. Research only — nothing signed up for or paid.</p>
-  <div class="grid wide">${opp.slice(0, 6).map(o => `<div class="card"><h4>${esc(o.name)}</h4><p><span class="pill ${o.status === "shortlisted" ? "pass" : ""}">${esc(o.status)}</span><span class="pill">score ${o.score}</span><span class="pill">${esc(o.category)}</span></p>
-    <p><b>Income:</b> ${esc(o.income)}</p><p><b>First rupee:</b> ${esc(o.first_rupee)} · <b>Hours/wk:</b> ${esc(o.hours)}</p><p><b>Cost:</b> ${esc(o.cost)}</p><p><b>Risk:</b> ${esc(o.risk)}</p>
-    <p class="muted">${o.sources.map(u => link(u)).join(" · ")}</p></div>`).join("")}</div>
-  <details><summary>All ${B.opportunities.length} ideas (incl. rejected)</summary><div class="tablewrap"><table><tr><th>Score</th><th>Idea</th><th>Status</th><th>Income (est.)</th><th>Reject reason</th></tr>${B.opportunities.map(o => `<tr><td class="n">${o.score ?? ""}</td><td>${esc(o.name)}</td><td>${esc(o.status)}</td><td>${esc(o.income)}</td><td class="muted">${esc(o.reject_reason)}</td></tr>`).join("")}</table></div></details>`;
-  const drawHits = () => { const q = $("#hQ").value.toLowerCase(); $("#hits tbody").innerHTML = sc.hits.filter(h => !q || (h.symbol + " " + h.setup + " " + h.scan).toLowerCase().includes(q)).map(h => `<tr><td>${esc(h.time)}</td><td>${esc(h.scan)}</td><td><b>${esc(h.symbol)}</b></td><td>${esc(h.setup)}</td><td class="n">${h.price ?? ""}</td><td class="n">${h.over_pct ?? ""}</td><td>${esc(h.news)} ${h.news_url ? link(h.news_url) : ""}</td></tr>`).join(""); };
-  $("#hQ").addEventListener("input", drawHits); drawHits();
-  const se = Object.entries(sc.by_setup);
-  chart("setupChart", { type: "doughnut", data: { labels: se.map(s => s[0]), datasets: [{ data: se.map(s => s[1]) }] }, options: { maintainAspectRatio: false, plugins: { legend: { position: "right" }, title: { display: true, text: "Hits by setup" } } } });
+  <h3>Bots <span class="muted" style="font-size:.85rem">— click a bot for its detail page</span></h3>
+  <div class="grid wide">${B.bots.map(b => `<a class="card botcard" href="#bots/${slug(b.name)}"><h4>${b.emoji} ${esc(b.name)}</h4><p>${esc(b.role)}</p>
+    <p><b>Schedule (IST):</b> ${b.schedule.map(esc).join(" · ")}</p>
+    <div class="note" style="margin:8px 0 0"><b>Latest:</b> ${esc(b.latest)}</div><p class="more">Open details →</p></a>`).join("")}</div>`;
+}
+function botDetail(s) {
+  const B = D.bots; if (!B) return;
+  const b = B.bots.find(x => slug(x.name) === s);
+  const list = $("#botList"), det = $("#botDetail");
+  if (!b) { list.hidden = false; det.hidden = true; renderMermaid(); return; }
+  list.hidden = true; det.hidden = false;
+  const others = B.bots.filter(x => x !== b).map(x => `<a class="pill" href="#bots/${slug(x.name)}">${x.emoji} ${esc(x.name)}</a>`).join("");
+  let extra = "";
+  const R = D.research, P = D.paper, N = D.news;
+  const runsTable = names => { const rs = (R?.runs || []).filter(r => names.includes(r.bot)); return rs.length ? `<h3>Backtest runs (${rs.length})</h3><div class="tablewrap" style="max-height:420px"><table><tr><th>Date</th><th>Variants</th><th>Passed</th><th>Families</th></tr>${rs.map(r => `<tr><td style="white-space:nowrap">${esc(r.date)}</td><td class="n">${r.rows}</td><td class="n">${r.passed}</td><td class="muted">${r.families.map(esc).join(", ")}</td></tr>`).join("")}</table></div>` : `<p class="muted">No backtest runs logged.</p>`; };
+  if (s === "market-scout") {
+    const sc = B.scout;
+    extra = `<h3>Hits — ${esc(sc.date || "none")} (${sc.hits.length})</h3>
+    <div class="grid"><div class="card"><h4>By scan</h4>${Object.entries(sc.by_scan).map(([k, v]) => `<p>${esc(k)}: <b>${v}</b></p>`).join("") || "<p class='muted'>none</p>"}</div>
+     <div class="card"><div class="chartbox" style="height:220px"><canvas id="setupChart"></canvas></div></div></div>
+    <div class="controls"><input type="search" id="hQ" placeholder="Filter hits by symbol / setup…"></div>
+    <div class="tablewrap" style="max-height:480px"><table id="hits"><thead><tr><th>Time</th><th>Scan</th><th>Symbol</th><th>Setup</th><th>Price</th><th>% over level</th><th>News</th></tr></thead><tbody></tbody></table></div>
+    <p class="muted">Hits are scan alerts, not trades. Trade Planner blocks every one until a strategy passes the gate.</p>`;
+  } else if (s === "trade-planner") {
+    const pd = P?.planner_days || [];
+    extra = `<h3>Daily verdicts</h3><div class="tablewrap"><table><tr><th>Date</th><th>Reviewed</th><th>Verdicts</th><th>Block reasons</th><th>Strangle event check</th></tr>
+    ${pd.slice().reverse().map(d => `<tr><td>${d.date}</td><td class="n">${d.total}</td><td>${Object.entries(d.counts).map(([k, v]) => `<span class="pill ${k === "BLOCK" ? "fail" : "pass"}">${v} ${esc(k)}</span>`).join("")}</td><td>${Object.entries(d.reasons).map(([k, v]) => `${esc(k)} (${v})`).join("; ")}</td><td class="muted">${d.strangle_event_check ? esc(`${d.strangle_event_check.done_at || ""}: ${d.strangle_event_check.reason || ""}`) : "—"}</td></tr>`).join("") || `<tr><td colspan="5" class="muted">No planner log yet.</td></tr>`}</table></div>
+    <h3>The gate it enforces</h3><ul class="clean">${(D.leaderboard?.gate || []).map(g => `<li>${esc(typeof g === "string" ? g : (g.rule || g.name || "") + (g.plain ? ": " + g.plain : g.text ? ": " + g.text : ""))}</li>`).join("")}</ul>`;
+  } else if (s === "paper-desk") {
+    const j = P?.strangle?.journal || [];
+    extra = `<h3>Paper journals</h3><p>Paper Desk journal files: ${P?.paper_desk_journal_files?.length ? P.paper_desk_journal_files.map(esc).join(", ") : "none yet: no ticket has been approved, because nothing has passed the gate."}</p>
+    <p>Exploratory strangle journal (run by Trading research bot): <b>${j.length}</b> rows, cumulative ${inr(P?.strangle?.cum)}. <a href="#paper">See Paper trading →</a></p>`;
+  } else if (s === "market-news-desk") {
+    const dates = Object.keys(N?.days || {}).sort().reverse();
+    extra = `<h3>Runs logged</h3>${dates.map(d => `<details ${d === dates[0] ? "open" : ""}><summary>${d} · ${N.days[d].length} runs · ${N.days[d].reduce((a, r) => a + r.items.length, 0)} items</summary><div class="tablewrap"><table><tr><th>Time IST</th><th>Slot</th><th>Items</th><th>Routed</th></tr>${N.days[d].map(r => `<tr><td>${esc(r.time)}</td><td>${esc(r.slot)}</td><td class="n">${r.items.length}</td><td>${r.routed.length ? r.routed.map(x => esc(x.to + " " + x.symbols.join(","))).join("; ") : "—"}</td></tr>`).join("")}</table></div></details>`).join("") || "<p class='muted'>No logs.</p>"}
+    <p>Events calendar: <b>${N?.events?.length || 0}</b> events (${(N?.events || []).filter(e => e.verified).length} verified). <a href="#news">Open the news archive and calendar →</a></p>`;
+  } else if (s === "trading-research-bot") {
+    extra = `<h3>Rule ideas</h3><div class="tablewrap"><table><tr><th>Rule</th><th>Status</th></tr>${(R?.queue || []).map(q => `<tr><td>${esc(q.title)}</td><td>${esc(q.status)}</td></tr>`).join("")}</table></div>${runsTable(runBots[s])}`;
+  } else if (s === "grok-bot") {
+    extra = `<h3>Weekly improvement cycles</h3>${(R?.weekly || []).map(w => `<div class="card" style="margin-bottom:8px"><h4>${esc(w.title)}</h4><ul class="clean">${w.headline.map(h => `<li>${esc(h)}</li>`).join("")}</ul></div>`).join("") || "<p class='muted'>None yet.</p>"}${runsTable(runBots[s])}`;
+  } else if (s === "opportunity-hunter") {
+    const opp = B.opportunities.filter(o => o.status !== "rejected");
+    extra = `<h3>Top ideas</h3><p class="muted">Income figures are estimates unless quoted from a program page. Research only: nothing signed up for or paid.</p>
+    <div class="grid wide">${opp.slice(0, 6).map(o => `<div class="card"><h4>${esc(o.name)}</h4><p><span class="pill ${o.status === "shortlisted" ? "pass" : ""}">${esc(o.status)}</span><span class="pill">score ${o.score}</span><span class="pill">${esc(o.category)}</span></p>
+      <p><b>Income:</b> ${esc(o.income)}</p><p><b>First rupee:</b> ${esc(o.first_rupee)} · <b>Hours/wk:</b> ${esc(o.hours)}</p><p><b>Cost:</b> ${esc(o.cost)}</p><p><b>Risk:</b> ${esc(o.risk)}</p>
+      <p class="muted">${o.sources.map(u => link(u)).join(" · ")}</p></div>`).join("")}</div>
+    <details><summary>All ${B.opportunities.length} ideas (incl. rejected)</summary><div class="tablewrap"><table><tr><th>Score</th><th>Idea</th><th>Status</th><th>Income (est.)</th><th>Reject reason</th></tr>${B.opportunities.map(o => `<tr><td class="n">${o.score ?? ""}</td><td>${esc(o.name)}</td><td>${esc(o.status)}</td><td>${esc(o.income)}</td><td class="muted">${esc(o.reject_reason)}</td></tr>`).join("")}</table></div></details>`;
+  }
+  det.innerHTML = `<p><a href="#bots">← All bots</a></p>
+  <h2>${b.emoji} ${esc(b.name)}</h2><p>${esc(b.role)}</p>
+  <div class="grid wide">
+   <div class="card"><h4>Schedule (IST)</h4><ul class="clean">${b.schedule.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
+   <div class="card"><h4>Reads</h4><ul class="clean">${b.inputs.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
+   <div class="card"><h4>Writes</h4><ul class="clean">${b.outputs.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
+   <div class="card"><h4>Hands off to</h4><p>${b.hands_to.map(h => `<span class="pill">${esc(h)}</span>`).join("")}</p><h4 style="margin-top:10px">Rules</h4><ul class="clean">${B.rules.map(r => `<li>${esc(r)}</li>`).join("")}</ul></div>
+  </div>
+  <div class="note"><b>Latest activity:</b> ${esc(b.latest)}</div>
+  ${extra}
+  <h3>Other bots</h3><p>${others}</p>`;
+  if (s === "market-scout") {
+    const sc = B.scout;
+    const drawHits = () => { const q = $("#hQ").value.toLowerCase(); $("#hits tbody").innerHTML = sc.hits.filter(h => !q || (h.symbol + " " + h.setup + " " + h.scan).toLowerCase().includes(q)).map(h => `<tr><td>${esc(h.time)}</td><td>${esc(h.scan)}</td><td><b>${esc(h.symbol)}</b></td><td>${esc(h.setup)}</td><td class="n">${h.price ?? ""}</td><td class="n">${h.over_pct ?? ""}</td><td>${esc(h.news)} ${h.news_url ? link(h.news_url) : ""}</td></tr>`).join(""); };
+    $("#hQ").addEventListener("input", drawHits); drawHits();
+    const se = Object.entries(sc.by_setup);
+    chart("setupChart", { type: "doughnut", data: { labels: se.map(x => x[0]), datasets: [{ data: se.map(x => x[1]) }] }, options: { maintainAspectRatio: false, plugins: { legend: { position: "right" }, title: { display: true, text: "Hits by setup" } } } });
+  }
+  window.scrollTo(0, 0);
 }
 let mermaidDone = false;
 function renderMermaid() { if (mermaidDone || !window.mermaid) return; mermaidDone = true; mermaid.initialize({ startOnLoad: false, theme: "default" }); mermaid.run({ nodes: [document.getElementById("flow")] }); }
