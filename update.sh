@@ -42,7 +42,7 @@ echo "secret scan: clean"
 
 [ "${1:-}" = "--no-push" ] && { echo "build ok (--no-push)"; exit 0; }
 
-git add -A index.html app.js style.css data README.md build_site.py update.sh .gitignore 2>/dev/null || git add -A
+git add -A index.html app.js style.css data README.md build_site.py update.sh .gitignore .nojekyll
 if git diff --cached --quiet; then
   echo "no changes; nothing to push"
   exit 0
