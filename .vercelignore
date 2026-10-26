@@ -5,3 +5,7 @@ README.md
 __pycache__
 *.pyc
 .git
+scan.sh
+live_push.sh
+build_lab.py
+.live
