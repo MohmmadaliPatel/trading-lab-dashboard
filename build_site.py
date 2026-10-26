@@ -538,6 +538,9 @@ def main():
     build_bots(bt, days, pdays, journal, runlist)
     build_meta(bt, fams, lb, pdays, journal)
     stamp_assets()
+    import build_lab
+    data = build_lab.build()
+    dump("lab.json", data)
     print(f"built data/*.json at {NOW:%Y-%m-%d %H:%M} IST: {len(bt)} variants, {len(fams)} families, {len(lb)} leaderboard, {len(days)} news days, {len(events)} events")
 
 

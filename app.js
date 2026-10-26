@@ -21,10 +21,10 @@ function route() {
 window.addEventListener("hashchange", route);
 
 async function load() {
-  const names = ["meta", "backtests", "leaderboard", "paper", "news", "research", "bots"];
+  const names = ["meta", "backtests", "leaderboard", "paper", "news", "research", "bots", "lab"];
   await Promise.all(names.map(async n => { try { D[n] = await (await fetch(`data/${n}.json`, { cache: "no-cache" })).json(); } catch { D[n] = null; } }));
   $("#updated").textContent = D.meta ? "last updated " + D.meta.updated_ist : "data unavailable";
-  [overview, strategies, gate, paper, news, research, bots].forEach(f => { try { f(); } catch (e) { console.error(f.name, e); } });
+  [overview, strategies, gate, paper, news, research, bots, labInit].forEach(f => { try { f(); } catch (e) { console.error(f.name, e); } });
   route();
 }
 
@@ -322,6 +322,76 @@ function botDetail(s) {
     chart("setupChart", { type: "doughnut", data: { labels: se.map(x => x[0]), datasets: [{ data: se.map(x => x[1]) }] }, options: { maintainAspectRatio: false, plugins: { legend: { position: "right" }, title: { display: true, text: "Hits by setup" } } } });
   }
   window.scrollTo(0, 0);
+}
+
+// ---------------------------------------------------------------- Paper lab (live)
+// Lab data lives on the `live-data` git branch (not deployed by Vercel) so updates need no redeploy.
+const LAB_REPO = "MohmmadaliPatel/trading-lab-dashboard", LAB_BR = "live-data", LAB_PATH = "data/lab.json";
+let LAB = null, labSrc = "", labDay = "", labTimer = null;
+const istNow = () => new Date(Date.now() + 5.5 * 3600e3);
+const marketOpen = () => { const t = istNow(), d = t.getUTCDay(), m = t.getUTCHours() * 60 + t.getUTCMinutes(); return d >= 1 && d <= 5 && m >= 555 && m <= 945; };
+async function fetchLab() {
+  const tries = [
+    async () => { const c = await (await fetch(`https://api.github.com/repos/${LAB_REPO}/commits/${LAB_BR}`, { headers: { Accept: "application/vnd.github+json" } })).json();
+                  if (!c.sha) throw 0; return [await (await fetch(`https://raw.githubusercontent.com/${LAB_REPO}/${c.sha}/${LAB_PATH}`)).json(), "live branch"]; },
+    async () => [await (await fetch(`https://raw.githubusercontent.com/${LAB_REPO}/${LAB_BR}/${LAB_PATH}?t=${Date.now()}`)).json(), "live branch (cached copy)"],
+    async () => [await (await fetch(`data/lab.json`, { cache: "no-cache" })).json(), "deployed copy"],
+  ];
+  for (const t of tries) { try { const [d, src] = await t(); if (d && d.days) { LAB = d; labSrc = src; return true; } } catch (e) {} }
+  return false;
+}
+async function labInit() {
+  LAB = D.lab || null; labSrc = "deployed copy"; renderLab();
+  if (await fetchLab()) renderLab();
+  if (!labTimer) labTimer = setInterval(async () => { if (marketOpen() && !document.hidden && await fetchLab()) renderLab(); }, 120000);
+}
+function renderLab() {
+  const L = LAB, el = $("#lab"); if (!el) return;
+  if (!L) { el.innerHTML = `<h2>Paper lab (live)</h2><p class="muted">Lab data unavailable.</p>`; return; }
+  const dates = L.days.map(d => d.date);
+  if (!dates.includes(labDay)) labDay = dates[0] || "";
+  const day = L.days.find(d => d.date === labDay);
+  const tcols = t => `<td>${esc(t.time)}</td><td><b>${esc(t.symbol)}</b></td><td>${esc(t.setup)}</td><td>${esc(t.side)}</td><td class="n">${t.qty ?? ""}</td><td class="n">${t.entry ?? ""}</td><td class="n">${t.stop ?? ""}</td><td class="n">${t.target ?? ""}</td><td class="n">${t.exit ?? ""}</td><td class="n">${t.r ?? ""}</td><td class="n ${cls(t.net)}">${t.net == null ? "" : inr(t.net)}</td><td>${esc(t.status)}</td><td class="muted">${esc(t.reason)}</td>`;
+  const thead = `<tr><th>Time</th><th>Symbol</th><th>Setup</th><th>Side</th><th>Qty</th><th>Entry</th><th>Stop</th><th>Target</th><th>Exit</th><th>R</th><th>Net</th><th>Status</th><th>Notes</th></tr>`;
+  el.innerHTML = `
+  <h2>Paper lab (live) <span class="pill rumor">EXPLORATORY, NOT VALIDATION</span></h2>
+  <div class="alert">${esc(L.note)} Daily stop: <b>${inr(L.daily_stop)}</b> (3% of ${inr(L.capital)} paper capital). No real orders.</div>
+  <p class="muted">As of <b>${esc(L.as_of_ist)}</b> · source: ${esc(labSrc)} · ${marketOpen() ? "refreshing every 2 min (market hours)" : "auto-refresh runs 09:15–15:45 IST on weekdays"} · <a href="#" id="labRefresh">refresh now</a></p>
+  ${!L.has_data ? `<div class="card"><h4>No lab activity yet</h4><p>Paper Desk hasn't logged a lab trade or daily note yet. This tab fills in automatically once it does, with no page redeploy needed.</p></div>` : `
+  <div class="grid">
+    <div class="card"><div class="kpi ${cls(L.totals.net)}">${inr(L.totals.net)}<small>lab net after costs, all days (${L.totals.closed} closed trades)</small></div></div>
+    <div class="card"><div class="kpi">${L.totals.closed ? Math.round(100 * L.totals.wins / L.totals.closed) + "%" : "—"}<small>win rate (all lab trades)</small></div></div>
+    <div class="card"><div class="kpi">${L.totals.skipped}<small>signals skipped</small></div></div>
+    <div class="card"><div class="kpi">${L.totals.days}<small>lab days logged</small></div></div>
+  </div>
+  <div class="controls" style="margin-top:12px"><label>Day: <select id="labDay">${dates.map(d => `<option ${d === labDay ? "selected" : ""}>${d}</option>`).join("")}</select></label></div>
+  ${day ? `
+  <div class="grid">
+    <div class="card"><div class="kpi ${cls(day.net)}">${inr(day.net)}<small>${esc(day.date)} net after costs (${inr(day.costs)} costs)</small></div></div>
+    <div class="card"><div class="kpi ${day.stop_hit ? "bad" : day.stop_used_pct > 60 ? "warn" : ""}">${day.stop_used_pct ?? 0}%<small>of the daily stop used${day.stop_hit ? ": STOP HIT, no new trades" : ""}</small></div></div>
+    <div class="card"><div class="kpi">${day.closed}/${day.open.length}<small>closed / open positions</small></div></div>
+    <div class="card"><div class="kpi">${day.skipped.length}<small>skipped signals</small></div></div>
+  </div>
+  <div class="card" style="margin-top:12px"><div class="chartbox" style="height:260px"><canvas id="labChart"></canvas></div></div>
+  <h3>Open positions</h3>${day.open.length ? `<div class="tablewrap"><table>${thead}${day.open.map(t => `<tr>${tcols(t)}</tr>`).join("")}</table></div>` : `<p class="muted">None open.</p>`}
+  <h3>Trades</h3>${day.trades.length ? `<div class="tablewrap"><table>${thead}${day.trades.map(t => `<tr>${tcols(t)}</tr>`).join("")}</table></div>` : `<p class="muted">No trades this day.</p>`}
+  <h3>Skipped signals</h3>${day.skipped.length ? `<div class="tablewrap"><table><tr><th>Time</th><th>Symbol</th><th>Setup</th><th>Why skipped</th></tr>${day.skipped.map(t => `<tr><td>${esc(t.time)}</td><td><b>${esc(t.symbol)}</b></td><td>${esc(t.setup)}</td><td>${esc(t.reason || t.status)}</td></tr>`).join("")}</table></div>` : `<p class="muted">None.</p>`}
+  <h3>Lessons</h3>${day.lessons.length ? `<ul class="clean">${day.lessons.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : day.summary.length ? `<ul class="clean">${day.summary.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : `<p class="muted">No daily note yet.</p>`}` : ""}
+  <h3>Per-setup stats (all lab days)</h3>
+  <div class="tablewrap"><table><tr><th>Setup</th><th>Closed</th><th>Win %</th><th>Avg R</th><th>Net after costs</th><th>Open</th><th>Skipped</th></tr>${L.setups.map(s => `<tr><td>${esc(s.setup)}</td><td class="n">${s.trades}</td><td class="n">${s.win_pct ?? "—"}</td><td class="n ${cls(s.avg_r)}">${s.avg_r ?? "—"}</td><td class="n ${cls(s.net)}">${inr(s.net)}</td><td class="n">${s.open}</td><td class="n">${s.skipped}</td></tr>`).join("") || `<tr><td colspan="7" class="muted">No trades yet.</td></tr>`}</table></div>
+  <p class="muted">Small samples: a handful of lab trades says almost nothing about an edge. Only the strict out-of-sample gate counts.</p>
+  <h3>History</h3>
+  <div class="tablewrap"><table><tr><th>Date</th><th>Closed</th><th>Wins</th><th>Net</th><th>Daily stop used</th><th>Skipped</th></tr>${L.days.map(d => `<tr><td><a href="#" data-labday="${d.date}">${d.date}</a></td><td class="n">${d.closed}</td><td class="n">${d.wins}</td><td class="n ${cls(d.net)}">${inr(d.net)}</td><td class="n">${d.stop_hit ? '<span class="pill fail">STOP HIT</span>' : (d.stop_used_pct ?? 0) + "%"}</td><td class="n">${d.skipped.length}</td></tr>`).join("")}</table></div>`}`;
+  $("#labRefresh").onclick = async e => { e.preventDefault(); if (await fetchLab()) renderLab(); };
+  const sel = $("#labDay"); if (sel) sel.onchange = () => { labDay = sel.value; renderLab(); };
+  el.querySelectorAll("[data-labday]").forEach(a => a.onclick = e => { e.preventDefault(); labDay = a.dataset.labday; renderLab(); });
+  if (day) {
+    const pts = [{ t: "start", cum: 0 }, ...day.curve];
+    chart("labChart", { type: "line", data: { labels: pts.map(p => p.t), datasets: [
+      { label: `Running P&L ${day.date}`, data: pts.map(p => p.cum), borderColor: "#4ea1ff", tension: .2 },
+      { label: `Daily stop (${inr(L.daily_stop)})`, data: pts.map(() => L.daily_stop), borderColor: "#ff5c5c", borderDash: [6, 4], pointRadius: 0 }] },
+      options: { maintainAspectRatio: false, scales: { y: { ticks: { callback: v => inr(v) } } } } });
+  }
 }
 let mermaidDone = false;
 function renderMermaid() { if (mermaidDone || !window.mermaid) return; mermaidDone = true; mermaid.initialize({ startOnLoad: false, theme: "default" }); mermaid.run({ nodes: [document.getElementById("flow")] }); }
