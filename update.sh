@@ -42,6 +42,14 @@ echo "secret scan: clean"
 
 [ "${1:-}" = "--no-push" ] && { echo "build ok (--no-push)"; exit 0; }
 
+# Ignore a rebuild whose only change is the "last updated" timestamp in data/meta.json
+if git diff --quiet HEAD -- . ':(exclude)data/meta.json' 2>/dev/null && [ -z "$(git ls-files --others --exclude-standard)" ] \
+   && ! git diff -U0 HEAD -- data/meta.json | grep -E '^[+-] ' | grep -vqE '"updated_(ist|iso)"'; then
+  git checkout -q -- data/meta.json 2>/dev/null || true
+  echo "no changes (only timestamp); nothing to push"
+  exit 0
+fi
+
 git add -A index.html app.js style.css data README.md build_site.py update.sh .gitignore .nojekyll
 if git diff --cached --quiet; then
   echo "no changes; nothing to push"
