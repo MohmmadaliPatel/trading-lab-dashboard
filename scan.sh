@@ -23,7 +23,8 @@ scan "GitHub/API token" -e '(gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,}|AKIA
 # GROWW is also an NSE ticker symbol; only the exact quoted value "GROWW" is allowed.
 scan "GROWW"           -P -e '(?<!")GROWW|GROWW(?!")'
 scan "TOTP"            -e 'TOTP'
-scan "secret"          -i -e 'secret'
+# 'secretary/secretariat' (news text) is allowed; any other 'secret' still blocks.
+scan "secret"          -i -P -e 'secret(?!ar)'
 scan "token"           -i -e 'token'
 scan "gmail"           -i -e '@gmail'
 scan "email address"   -e '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.(com|in|org|net|io|co)\b'
