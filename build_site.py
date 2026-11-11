@@ -232,6 +232,7 @@ def build_paper():
             for rs in v.get("reasons", []):
                 reasons[rs] += 1
         sec = plog[d].get("strangle_event_check", {}) if isinstance(plog[d], dict) else {}
+        if isinstance(sec, str): sec = {"reason": sec}
         days.append({"date": d, "counts": dict(cnt), "reasons": dict(reasons), "total": sum(cnt.values()),
                      "strangle_event_check": {k: sec.get(k) for k in ("done_at", "reason", "note_sent")} if sec else None})
     # Paper Desk journal (india-day-trader team) if any
